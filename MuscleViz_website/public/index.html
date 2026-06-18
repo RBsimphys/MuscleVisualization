@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>MuscleVIZ</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background: #0a0a0f;
+            color: #e8e8f0;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 28px;
+            border-bottom: 1px solid #1e1e2e;
+            background: #0d0d18;
+            flex-shrink: 0;
+        }
+        .logo-dot {
+            width: 10px; height: 10px;
+            border-radius: 50%;
+            background: #00e5b0;
+            box-shadow: 0 0 8px #00e5b0aa;
+        }
+        header h1 { font-size: 15px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #fff; }
+        header span { font-size: 13px; color: #555570; margin-left: auto; }
+        .main { display: flex; flex: 1; overflow: hidden; }
+
+        .hand-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid #1e1e2e;
+            position: relative;
+        }
+        #hand-canvas { width: 100%; flex: 1; display: block; cursor: grab; }
+        #hand-canvas:active { cursor: grabbing; }
+
+        .hand-overlay {
+            position: absolute;
+            top: 16px; left: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            pointer-events: none;
+        }
+        .stat-pill {
+            background: #0d0d18cc;
+            border: 1px solid #1e1e2e;
+            border-radius: 8px;
+            padding: 8px 14px;
+            font-size: 12px;
+            color: #888899;
+            backdrop-filter: blur(4px);
+        }
+        .stat-pill strong { display: block; font-size: 20px; font-weight: 600; color: #00e5b0; }
+        #status-dot {
+            display: inline-block; width: 8px; height: 8px;
+            border-radius: 50%; background: #333;
+            margin-right: 6px; vertical-align: middle;
+            transition: background 0.2s;
+        }
+        #status-dot.active { background: #00e5b0; box-shadow: 0 0 6px #00e5b0; }
+
+        .hint {
+            position: absolute;
+            bottom: 12px; right: 14px;
+            font-size: 10px;
+            color: #333350;
+            pointer-events: none;
+        }
+
+        /* RIGHT panel split into chart (50%) + controls (50%) */
+        .right-panel {
+            width: 400px;
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            background: #0d0d18;
+        }
+        .chart-wrap {
+            flex: 1;
+            padding: 18px 18px 8px;
+            min-height: 0;
+            border-bottom: 1px solid #1e1e2e;
+            display: flex;
+            flex-direction: column;
+        }
+        .panel-label {
+            font-size: 11px; font-weight: 600;
+            letter-spacing: 0.1em; text-transform: uppercase;
+            color: #444460; margin-bottom: 8px; flex-shrink: 0;
+        }
+        .chart-wrap canvas { flex: 1; min-height: 0; }
+        .controls {
+            flex: 1;
+            padding: 16px 18px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            min-height: 0;
+        }
+        .control-row { display: flex; align-items: center; gap: 10px; }
+        .control-label { font-size: 11px; color: #555570; width: 82px; flex-shrink: 0; }
+        input[type=range] {
+            flex: 1; -webkit-appearance: none;
+            height: 3px; background: #1e1e2e;
+            border-radius: 2px; outline: none;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none; width: 14px; height: 14px;
+            border-radius: 50%; background: #00e5b0; cursor: pointer;
+        }
+        .control-val { font-size: 12px; color: #00e5b0; min-width: 40px; text-align: right; font-variant-numeric: tabular-nums; }
+        .bar-track { height: 4px; background: #1e1e2e; border-radius: 2px; overflow: hidden; flex: 1; }
+        .bar-fill { height: 100%; background: #00e5b0; border-radius: 2px; width: 0%; transition: width 0.1s; }
+    </style>
+</head>
+<body>
+<header>
+    <div class="logo-dot"></div>
+    <h1>MuscleVIZ</h1>
+    <span>ESP32 · EMG · Live</span>
+</header>
+<div class="main">
+    <div class="hand-panel">
+        <canvas id="hand-canvas"></canvas>
+        <div class="hand-overlay">
+            <div class="stat-pill">ADC raw<strong id="adc-val">0</strong></div>
+            <div class="stat-pill">Curl<strong id="curl-pct">0%</strong></div>
+            <div class="stat-pill" style="font-size:12px;"><span id="status-dot"></span><span id="status-text">idle</span></div>
+        </div>
+        <div class="hint">drag to orbit · scroll to zoom</div>
+    </div>
+    <div class="right-panel">
+        <div class="chart-wrap">
+            <div class="panel-label">EMG signal</div>
+            <canvas id="emg-chart"></canvas>
+        </div>
+        <div class="controls">
+            <div class="panel-label" style="margin-bottom:0;">Controls</div>
+            <div class="control-row">
+                <span class="control-label">Signal</span>
+                <div class="bar-track"><div class="bar-fill" id="bar"></div></div>
+                <span class="control-val" id="bar-pct">0%</span>
+            </div>
+            <div class="control-row">
+                <span class="control-label">Threshold</span>
+                <input type="range" id="thresh" min="0" max="4095" value="1800" step="1">
+                <span class="control-val" id="thresh-val">1800</span>
+            </div>
+            <div class="control-row">
+                <span class="control-label">Smoothing</span>
+                <input type="range" id="smooth" min="0.01" max="0.5" value="0.15" step="0.01">
+                <span class="control-val" id="smooth-val">0.15</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// ── SCENE ─────────────────────────────────────────────────────────────────────
+const canvas = document.getElementById('hand-canvas');
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0a0a0f);
+
+const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 100);
+camera.position.set(0, 1, 7);
+camera.lookAt(0, -0.5, 0);
+
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.shadowMap.enabled = true;
+
+function resizeHand() {
+    const p = canvas.parentElement;
+    renderer.setSize(p.clientWidth, p.clientHeight);
+    camera.aspect = p.clientWidth / p.clientHeight;
+    camera.updateProjectionMatrix();
+}
+resizeHand();
+window.addEventListener('resize', resizeHand);
+
+// ── LIGHTS ────────────────────────────────────────────────────────────────────
+scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+const key = new THREE.DirectionalLight(0xffffff, 1.2);
+key.position.set(3, 8, 5);
+scene.add(key);
+const fill = new THREE.DirectionalLight(0x8888ff, 0.3);
+fill.position.set(-4, 2, 3);
+scene.add(fill);
+const rim = new THREE.DirectionalLight(0x00ffcc, 0.4);
+rim.position.set(0, -3, -4);
+scene.add(rim);
+
+// ── MATERIALS ─────────────────────────────────────────────────────────────────
+const skinMat    = new THREE.MeshStandardMaterial({ color: 0xd4956a, roughness: 0.8 });
+const knuckleMat = new THREE.MeshStandardMaterial({ color: 0xc07a55, roughness: 0.9 });
+const forearmMat = new THREE.MeshStandardMaterial({ color: 0xc8855e, roughness: 0.85 });
+const tendonMat  = new THREE.MeshStandardMaterial({ color: 0xb87050, roughness: 0.7 });
+
+// ── HELPERS ───────────────────────────────────────────────────────────────────
+function box(w, h, d, mat) {
+    return new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat || skinMat);
+}
+function sphere(r, mat) {
+    return new THREE.Mesh(new THREE.SphereGeometry(r, 10, 7), mat || skinMat);
+}
+function cyl(rt, rb, h, seg, mat) {
+    return new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, h, seg || 12), mat || skinMat);
+}
+
+// ── ROOT GROUP (everything orbits around this) ─────────────────────────────
+const root = new THREE.Group();
+root.position.y = -0.5;
+scene.add(root);
+
+// ── FOREARM ───────────────────────────────────────────────────────────────────
+const forearm = new THREE.Group();
+root.add(forearm);
+
+// main forearm body — tapered cylinder
+const forearmBody = cyl(0.38, 0.48, 3.2, 14, forearmMat);
+forearmBody.position.y = -2.5;
+forearm.add(forearmBody);
+
+// ulna bone ridge (subtle bump along back)
+const ulna = cyl(0.06, 0.04, 3.0, 8, tendonMat);
+ulna.position.set(0.28, -2.5, -0.1);
+ulna.rotation.z = 0.06;
+forearm.add(ulna);
+
+// wrist joint
+const wristJoint = cyl(0.41, 0.43, 0.28, 14, forearmMat);
+wristJoint.position.y = -1.02;
+forearm.add(wristJoint);
+
+// elbow cap
+const elbow = sphere(0.5, forearmMat);
+elbow.scale.set(1, 0.7, 0.85);
+elbow.position.y = -4.1;
+forearm.add(elbow);
+
+// ── HAND GROUP ────────────────────────────────────────────────────────────────
+const hand = new THREE.Group();
+hand.rotation.z = 0.04;
+root.add(hand);
+
+// palm
+const palm = box(1.32, 1.5, 0.30, skinMat);
+hand.add(palm);
+
+// palm knuckle ridge
+for (let i = 0; i < 4; i++) {
+    const kr = sphere(0.10, knuckleMat);
+    kr.position.set(-0.44 + i * 0.29, 0.76, 0.12);
+    hand.add(kr);
+}
+
+// wrist connector sphere
+const wristSphere = sphere(0.38, skinMat);
+wristSphere.scale.set(1.1, 0.6, 0.9);
+wristSphere.position.y = -0.88;
+hand.add(wristSphere);
+
+// ── FINGERS ───────────────────────────────────────────────────────────────────
+const fingerDefs = [
+    { x: -0.44, baseH: 0.42, midH: 0.36, tipH: 0.27, w: 0.19 },
+    { x: -0.15, baseH: 0.46, midH: 0.40, tipH: 0.30, w: 0.20 },
+    { x:  0.15, baseH: 0.48, midH: 0.42, tipH: 0.32, w: 0.21 },
+    { x:  0.44, baseH: 0.43, midH: 0.37, tipH: 0.27, w: 0.19 },
+];
+
+const fingers = [];
+
+fingerDefs.forEach(({ x, baseH, midH, tipH, w }) => {
+    const base = new THREE.Group();
+    base.position.set(x, 0.95, 0);
+    hand.add(base);
+
+    const s1 = box(w, baseH, w);
+    s1.position.y = baseH / 2;
+    base.add(s1);
+    const k1 = sphere(w * 0.52, knuckleMat);
+    k1.position.y = baseH;
+    base.add(k1);
+
+    const mid = new THREE.Group();
+    mid.position.y = baseH;
+    base.add(mid);
+
+    const s2 = box(w * 0.91, midH, w * 0.91);
+    s2.position.y = midH / 2;
+    mid.add(s2);
+    const k2 = sphere(w * 0.45, knuckleMat);
+    k2.position.y = midH;
+    mid.add(k2);
+
+    const tip = new THREE.Group();
+    tip.position.y = midH;
+    mid.add(tip);
+
+    const s3 = box(w * 0.80, tipH, w * 0.80);
+    s3.position.y = tipH / 2;
+    tip.add(s3);
+
+    const cap = sphere(w * 0.40, skinMat);
+    cap.position.y = tipH;
+    tip.add(cap);
+
+    fingers.push({ base, mid, tip });
+});
+
+// ── THUMB ─────────────────────────────────────────────────────────────────────
+const thumbBase = new THREE.Group();
+thumbBase.position.set(-0.83, 0.05, 0.06);
+thumbBase.rotation.z = -0.45;
+thumbBase.rotation.x = -0.15;
+hand.add(thumbBase);
+
+const ts1 = box(0.21, 0.38, 0.21);
+ts1.position.y = 0.19;
+thumbBase.add(ts1);
+const tk1 = sphere(0.12, knuckleMat);
+tk1.position.y = 0.38;
+thumbBase.add(tk1);
+
+const thumbMid = new THREE.Group();
+thumbMid.position.y = 0.38;
+thumbBase.add(thumbMid);
+
+const ts2 = box(0.18, 0.30, 0.18);
+ts2.position.y = 0.15;
+thumbMid.add(ts2);
+const tCap = sphere(0.09, skinMat);
+tCap.position.y = 0.30;
+thumbMid.add(tCap);
+
+// ── CURL ──────────────────────────────────────────────────────────────────────
+let targetCurl = 0, currentCurl = 0;
+
+function applyCurl(c) {
+    fingers.forEach(({ base, mid, tip }) => {
+        base.rotation.x = c * 1.45;
+        mid.rotation.x  = c * 1.25;
+        tip.rotation.x  = c * 0.85;
+    });
+    thumbBase.rotation.z = -0.45 + c * -0.65;
+    thumbMid.rotation.z  = c * -0.55;
+}
+
+// ── ORBITAL CONTROLS ──────────────────────────────────────────────────────────
+let isDragging = false, lastX = 0, lastY = 0;
+let sphericalTheta = 0, sphericalPhi = Math.PI / 3.5, sphericalR = 7;
+
+function updateCamera() {
+    camera.position.set(
+        sphericalR * Math.sin(sphericalPhi) * Math.sin(sphericalTheta),
+        sphericalR * Math.cos(sphericalPhi) - 0.5,
+        sphericalR * Math.sin(sphericalPhi) * Math.cos(sphericalTheta)
+    );
+    camera.lookAt(0, -0.5, 0);
+}
+updateCamera();
+
+canvas.addEventListener('mousedown', e => { isDragging = true; lastX = e.clientX; lastY = e.clientY; });
+window.addEventListener('mouseup',   () => { isDragging = false; });
+window.addEventListener('mousemove', e => {
+    if (!isDragging) return;
+    const dx = e.clientX - lastX, dy = e.clientY - lastY;
+    sphericalTheta -= dx * 0.008;
+    sphericalPhi    = Math.max(0.1, Math.min(Math.PI - 0.1, sphericalPhi + dy * 0.008));
+    lastX = e.clientX; lastY = e.clientY;
+    updateCamera();
+});
+canvas.addEventListener('wheel', e => {
+    sphericalR = Math.max(3, Math.min(14, sphericalR + e.deltaY * 0.01));
+    updateCamera();
+    e.preventDefault();
+}, { passive: false });
+
+// touch support
+let lastTouchX = 0, lastTouchY = 0;
+canvas.addEventListener('touchstart', e => { lastTouchX = e.touches[0].clientX; lastTouchY = e.touches[0].clientY; });
+canvas.addEventListener('touchmove', e => {
+    const dx = e.touches[0].clientX - lastTouchX, dy = e.touches[0].clientY - lastTouchY;
+    sphericalTheta -= dx * 0.008;
+    sphericalPhi    = Math.max(0.1, Math.min(Math.PI - 0.1, sphericalPhi + dy * 0.008));
+    lastTouchX = e.touches[0].clientX; lastTouchY = e.touches[0].clientY;
+    updateCamera();
+    e.preventDefault();
+}, { passive: false });
+
+// ── CHART ─────────────────────────────────────────────────────────────────────
+const chartLabels = [], chartData = [];
+let seconds = 0;
+
+const chart = new Chart(document.getElementById('emg-chart'), {
+    type: 'line',
+    data: {
+        labels: chartLabels,
+        datasets: [{
+            label: 'EMG',
+            data: chartData,
+            borderColor: '#00e5b0',
+            borderWidth: 1.5,
+            pointRadius: 0,
+            tension: 0.35,
+            fill: true,
+            backgroundColor: 'rgba(0,229,176,0.07)'
+        }]
+    },
+    options: {
+        animation: false,
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+            x: { ticks: { color: '#444460', font: { size: 10 }, maxTicksLimit: 6 }, grid: { color: '#1e1e2e' }, border: { color: '#1e1e2e' } },
+            y: { min: 0, max: 4095, ticks: { color: '#444460', font: { size: 10 }, maxTicksLimit: 5 }, grid: { color: '#1e1e2e' }, border: { color: '#1e1e2e' } }
+        }
+    }
+});
+
+// ── UI ────────────────────────────────────────────────────────────────────────
+const adcValEl  = document.getElementById('adc-val');
+const curlPctEl = document.getElementById('curl-pct');
+const barEl     = document.getElementById('bar');
+const barPctEl  = document.getElementById('bar-pct');
+const statusDot = document.getElementById('status-dot');
+const statusTxt = document.getElementById('status-text');
+const threshEl  = document.getElementById('thresh');
+const threshVal = document.getElementById('thresh-val');
+const smoothEl  = document.getElementById('smooth');
+const smoothVal = document.getElementById('smooth-val');
+
+threshEl.addEventListener('input', () => threshVal.textContent = threshEl.value);
+smoothEl.addEventListener('input', () => smoothVal.textContent = parseFloat(smoothEl.value).toFixed(2));
+
+// ── POLLING ───────────────────────────────────────────────────────────────────
+setInterval(async () => {
+    try {
+        const res  = await fetch('/adc');
+        const json = await res.json();
+        const v = json.value, t = parseInt(threshEl.value);
+        adcValEl.textContent  = v;
+        barEl.style.width     = Math.round(v / 4095 * 100) + '%';
+        barPctEl.textContent  = Math.round(v / 4095 * 100) + '%';
+        const activated = v > t;
+        statusDot.className   = activated ? 'active' : '';
+        statusTxt.textContent = activated ? 'activated' : 'idle';
+        targetCurl = activated ? Math.min((v - t) / (4095 - t), 1) : 0;
+        curlPctEl.textContent = Math.round(targetCurl * 100) + '%';
+        chartLabels.push(seconds++);
+        chartData.push(v);
+        if (chartLabels.length > 60) { chartLabels.shift(); chartData.shift(); }
+        chart.update('none');
+    } catch(e) {}
+}, 100);
+
+// ── RENDER ────────────────────────────────────────────────────────────────────
+function animate() {
+    requestAnimationFrame(animate);
+    currentCurl += (targetCurl - currentCurl) * parseFloat(smoothEl.value);
+    applyCurl(currentCurl);
+    renderer.render(scene, camera);
+}
+animate();
+</script>
+</body>
+</html>

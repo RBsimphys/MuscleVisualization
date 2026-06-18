@@ -1,0 +1,12 @@
+<% if (user) { %>
+<form id="log-out" action="/logout" method="POST">
+    <button type="submit">
+        <%= user.name %> | Logout
+    </button>
+</form>
+<% } else { %>
+<div id="user-authentication">
+    <a href="/login">Login</a>
+    <a href="/signup">Signup</a>
+</div>
+<% } %>

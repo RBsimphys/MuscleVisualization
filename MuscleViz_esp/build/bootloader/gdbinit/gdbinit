@@ -1,0 +1,2 @@
+source /home/rami/esp/projects/MuscleViz/build/bootloader/gdbinit/symbols
+source /home/rami/esp/projects/MuscleViz/build/bootloader/gdbinit/connect

@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>ESP32 ADC</title>
+</head>
+
+<body>
+    <h1>ADC Value: <span id="value">--</span></h1>
+
+    <script>
+        // fetch new value every second
+        setInterval(async () => {
+            const res = await fetch('/adc');
+            const data = await res.json();
+            document.getElementById('value').innerText = data.value;
+        }, 1000);
+    </script>
+</body>
+
+</html>
