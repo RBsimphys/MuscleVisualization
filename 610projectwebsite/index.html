@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EMG Biofeedback Monitor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app-shell">
+
+  <header class="app-header">
+    <div>
+      <h1>EMG Biofeedback Monitor</h1>
+      <div class="subtitle">Care-provider view</div>
+    </div>
+    <div style="display:flex; gap:10px; align-items:center;">
+      <div id="signal-pill" class="session-pill">
+        <span class="dot"></span>
+        <span id="signal-pill-text">no signal</span>
+      </div>
+      <div id="session-pill" class="session-pill">
+        <span class="dot"></span>
+        <span id="session-pill-text">not calibrated</span>
+      </div>
+    </div>
+  </header>
+
+  <div class="main-grid">
+
+    <!-- Left column: the live visuals -->
+    <div>
+      <div class="panel">
+        <h2>Arm Model &mdash; Live Flexion</h2>
+        <div id="arm-viewer-container"></div>
+      </div>
+
+      <div class="panel">
+        <h2>Muscle Activity</h2>
+        <div id="chart-container">
+          <canvas id="emg-chart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right column: calibration + live readout -->
+    <div>
+      <div class="panel">
+        <h2>Calibration</h2>
+
+        <div class="cal-step" id="step-baseline" data-step="baseline">
+          <div class="cal-step-title">
+            <span>1. Set baseline</span>
+            <span class="cal-step-status" id="status-baseline">not started</span>
+          </div>
+          <div class="cal-step-body">
+            <button class="primary" id="btn-baseline-start">Start Baseline Recording</button>
+            <button class="danger" id="btn-baseline-stop" disabled>Stop Recording</button>
+            <span class="countdown" id="baseline-countdown"></span>
+          </div>
+        </div>
+
+        <div class="cal-step" id="step-mvc" data-step="mvc">
+          <div class="cal-step-title">
+            <span>2. Set max contraction</span>
+            <span class="cal-step-status" id="status-mvc">waiting on baseline</span>
+          </div>
+          <div class="cal-step-body">
+            <button class="primary" id="btn-mvc-start" disabled>Start Max Contraction Recording</button>
+            <button class="danger" id="btn-mvc-stop" disabled>Stop Recording</button>
+            <span class="countdown" id="mvc-countdown"></span>
+          </div>
+        </div>
+
+        <button id="btn-recalibrate" style="margin-top: 4px; width: 100%;">Recalibrate (new patient)</button>
+      </div>
+
+      <div class="panel gauge">
+        <div class="label">Live %MVC</div>
+        <div class="reading unknown" id="pct-reading">&mdash;</div>
+        <div class="zone-row">
+          <span class="zone-dot unknown" id="zone-dot"></span>
+          <span id="zone-label">awaiting calibration</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Debug-only panel: lets you sanity-check the arm's flex motion without
+       needing a live signal. Safe to collapse/leave alone during normal use. -->
+  <details class="testing-panel">
+    <summary>Debug: manual arm flex</summary>
+    <div class="row">
+      <label>Flex
+        <input type="range" id="debug-flex-slider" min="0" max="100" value="0">
+        <span id="debug-flex-value">0%</span>
+      </label>
+      <button id="btn-frame-model">Frame Model</button>
+      <span class="field-note">Drives the arm directly, bypassing live data - useful to confirm the model still moves correctly if the gauge looks stuck.</span>
+    </div>
+  </details>
+
+</div>
+
+<!-- Three.js r128 (classic global build) + loaders, from CDN. -->
+<script src="https://unpkg.com/three@0.128.0/build/three.min.js"></script>
+<script src="https://unpkg.com/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+<script src="https://unpkg.com/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<!-- Chart.js for the live graph -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+<script src="emg-pipeline.js"></script>
+<script src="data-source.js"></script>
+<script src="arm-viewer.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
