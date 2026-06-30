@@ -46,6 +46,7 @@ class ArmViewer {
     this.camera.position.set(0.6, 0.6, 0.9);
 
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2)); // cap at 2x - higher gives no visible benefit but costs real GPU fill-rate
     container.appendChild(this.renderer.domElement);
 
     this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);

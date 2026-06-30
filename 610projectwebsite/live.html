@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EMG Biofeedback Monitor &mdash; Live</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app-shell">
+
+  <header class="app-header">
+    <div>
+      <a class="back-link" href="index.html">&larr; Home</a>
+      <h1>EMG Biofeedback Monitor</h1>
+      <div class="subtitle">Care-provider view &middot; Live (connected to ESP32) &middot; <a href="sessions.html">Session History</a></div>
+    </div>
+    <div style="display:flex; gap:10px; align-items:center;">
+      <div id="signal-pill" class="session-pill">
+        <span class="dot"></span>
+        <span id="signal-pill-text">no signal</span>
+      </div>
+      <div id="session-pill" class="session-pill">
+        <span class="dot"></span>
+        <span id="session-pill-text">not calibrated</span>
+      </div>
+    </div>
+  </header>
+
+  <div class="main-grid">
+
+    <div>
+      <div class="panel">
+        <h2>Arm Model &mdash; Live Flexion</h2>
+        <div id="arm-viewer-container"></div>
+      </div>
+
+      <div class="panel">
+        <h2>Muscle Activity</h2>
+        <div id="chart-container">
+          <canvas id="emg-chart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="panel">
+        <h2>Calibration</h2>
+
+        <div class="cal-step" id="step-baseline" data-step="baseline">
+          <div class="cal-step-title">
+            <span>1. Set baseline</span>
+            <span class="cal-step-status" id="status-baseline">not started</span>
+          </div>
+          <div class="cal-step-body">
+            <button class="primary" id="btn-baseline-start">Start Baseline Recording</button>
+            <button class="danger" id="btn-baseline-stop" disabled>Stop Recording</button>
+            <span class="countdown" id="baseline-countdown"></span>
+          </div>
+        </div>
+
+        <div class="cal-step" id="step-mvc" data-step="mvc">
+          <div class="cal-step-title">
+            <span>2. Set max contraction</span>
+            <span class="cal-step-status" id="status-mvc">waiting on baseline</span>
+          </div>
+          <div class="cal-step-body">
+            <button class="primary" id="btn-mvc-start" disabled>Start Max Contraction Recording</button>
+            <button class="danger" id="btn-mvc-stop" disabled>Stop Recording</button>
+            <span class="countdown" id="mvc-countdown"></span>
+          </div>
+        </div>
+
+        <button id="btn-recalibrate" style="margin-top: 4px; width: 100%;">Recalibrate (new patient)</button>
+      </div>
+
+      <div class="panel gauge">
+        <div class="label">Live %MVC</div>
+        <div class="reading unknown" id="pct-reading">&mdash;</div>
+        <div class="zone-row">
+          <span class="zone-dot unknown" id="zone-dot"></span>
+          <span id="zone-label">awaiting calibration</span>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Save Session Summary</h2>
+        <input type="text" id="patient-label-input" placeholder="Patient / trial label (optional)" style="width:100%; padding:8px 10px; border-radius:8px; border:1px solid var(--border); font-family:var(--body); font-size:13.5px; margin-bottom:8px; box-sizing:border-box;">
+        <button class="primary" id="btn-save-session" style="width:100%;">Save Session Summary</button>
+        <p class="field-note" id="save-session-status"></p>
+      </div>
+    </div>
+  </div>
+
+  <details class="testing-panel">
+    <summary>Debug: manual arm flex</summary>
+    <div class="row">
+      <label>Flex
+        <input type="range" id="debug-flex-slider" min="0" max="100" value="0">
+        <span id="debug-flex-value">0%</span>
+      </label>
+      <button id="btn-frame-model">Frame Model</button>
+      <span class="field-note">Drives the arm directly, bypassing live data - useful to confirm the model still moves correctly if the gauge looks stuck.</span>
+    </div>
+  </details>
+
+</div>
+
+<script src="https://unpkg.com/three@0.128.0/build/three.min.js"></script>
+<script src="https://unpkg.com/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+<script src="https://unpkg.com/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+<script src="emg-pipeline.js"></script>
+<script src="data-source.js"></script>
+<script src="arm-viewer.js"></script>
+<script src="app-common.js"></script>
+<script>
+  const signalPill = document.getElementById('signal-pill');
+  const signalPillText = document.getElementById('signal-pill-text');
+
+  const dataSource = new ESP32PollingDataSource(null, { url: '/adc' });
+
+  initApp({
+    dataSource,
+    mode: 'live',
+    onSignalStatus: (source) => {
+      if (source.isLive) {
+        signalPill.className = 'session-pill live';
+        signalPillText.textContent = `receiving data (${source.lastValue})`;
+      } else if (source.lastError) {
+        signalPill.className = 'session-pill stale';
+        signalPillText.textContent = `server unreachable: ${source.lastError}`;
+      } else {
+        signalPill.className = 'session-pill stale';
+        signalPillText.textContent = 'no signal from ESP32';
+      }
+    },
+  });
+</script>
+</body>
+</html>

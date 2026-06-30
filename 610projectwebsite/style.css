@@ -252,3 +252,96 @@ details.testing-panel summary {
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; animation: none !important; }
 }
+
+/* ---------- Back link (live.html / test.html / sessions.html headers) ---------- */
+.back-link {
+  display: inline-block;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--ink-muted);
+  text-decoration: none;
+  margin-bottom: 6px;
+}
+.back-link:hover { color: var(--accent); }
+
+/* ---------- Landing page ---------- */
+.landing-shell {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 64px 24px;
+  text-align: center;
+}
+.landing-header h1 {
+  font-size: 32px;
+  margin-bottom: 10px;
+}
+.landing-header .subtitle {
+  color: var(--ink-muted);
+  font-size: 15px;
+  max-width: 480px;
+  margin: 0 auto 40px;
+}
+.landing-cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  text-align: left;
+}
+@media (max-width: 640px) {
+  .landing-cards { grid-template-columns: 1fr; }
+}
+.landing-card {
+  display: block;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 28px 24px;
+  text-decoration: none;
+  color: var(--ink);
+  transition: border-color 0.15s ease, transform 0.08s ease;
+}
+.landing-card:hover {
+  border-color: var(--accent);
+  transform: translateY(-2px);
+}
+.landing-card-icon { font-size: 28px; margin-bottom: 10px; }
+.landing-card h2 { font-size: 18px; margin-bottom: 8px; }
+.landing-card p { color: var(--ink-muted); font-size: 13.5px; margin: 0 0 16px; }
+.landing-card-cta {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--accent);
+}
+.landing-footer { margin-top: 36px; }
+.landing-footer a {
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--ink-muted);
+  text-decoration: none;
+}
+.landing-footer a:hover { color: var(--accent); }
+
+/* ---------- Sessions history table ---------- */
+.sessions-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.sessions-table th {
+  text-align: left;
+  font-family: var(--mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ink-muted);
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+}
+.sessions-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+  font-family: var(--mono);
+}
+.session-row { cursor: pointer; }
+.session-row:hover { background: var(--accent-soft); }

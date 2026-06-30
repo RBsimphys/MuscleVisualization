@@ -22,7 +22,7 @@ class ESP32PollingDataSource {
   constructor(onSample, opts = {}) {
     this.onSample = onSample;
     this.url = opts.url || '/adc';
-    this.intervalMs = opts.intervalMs || 20; // ~50 polls/sec
+    this.intervalMs = opts.intervalMs || 50; // ~20 polls/sec - plenty to feel live without hammering the network
     this.staleMs = opts.staleMs || 1500;     // how long without a new reading before we call it "no signal"
 
     this.lastValue = null;
@@ -32,6 +32,7 @@ class ESP32PollingDataSource {
 
     this._timer = null;
     this._lastSeenUpdateTs = null; // server's lastUpdated value, to detect genuinely new readings
+    this._pollInFlight = false;    // guards against overlapping fetches piling up (see _poll)
   }
 
   start() {
@@ -55,8 +56,21 @@ class ESP32PollingDataSource {
   }
 
   async _poll() {
+    // setInterval fires on a fixed schedule regardless of whether the last
+    // fetch finished. If the network or server ever lags even briefly, skip
+    // this tick rather than starting a second overlapping request - without
+    // this guard, a slow patch causes requests to stack up faster than they
+    // resolve, and the backlog only grows from there for the rest of the
+    // session (this is almost certainly why things got worse over time
+    // during testing, rather than staying at one consistent level of lag).
+    if (this._pollInFlight) return;
+    this._pollInFlight = true;
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), Math.max(1000, this.intervalMs * 10));
+
     try {
-      const res = await fetch(this.url, { cache: 'no-store' });
+      const res = await fetch(this.url, { cache: 'no-store', signal: controller.signal });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       this.lastPolledAt = Date.now();
@@ -74,7 +88,10 @@ class ESP32PollingDataSource {
         this.onSample(this.lastValue);
       }
     } catch (err) {
-      this.lastError = err.message;
+      this.lastError = controller.signal.aborted ? 'request timed out' : err.message;
+    } finally {
+      clearTimeout(timeout);
+      this._pollInFlight = false;
     }
   }
 }
