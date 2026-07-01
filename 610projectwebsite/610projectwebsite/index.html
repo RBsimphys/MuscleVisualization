@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EMG Biofeedback Monitor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="landing-shell">
+  <div class="landing-header">
+    <h1>EMG Biofeedback Monitor</h1>
+    <p class="subtitle">Care-provider dashboard for calibrated, live muscle-activity biofeedback.</p>
+  </div>
+
+  <div class="landing-cards">
+    <a class="landing-card" href="live.html">
+      <div class="landing-card-icon">&#9889;</div>
+      <h2>Live Mode</h2>
+      <p>Connect to the ESP32 + EMG sensor over the network for real-time monitoring with an actual patient.</p>
+      <span class="landing-card-cta">Open Live Mode &rarr;</span>
+    </a>
+
+    <a class="landing-card" href="test.html">
+      <div class="landing-card-icon">&#128190;</div>
+      <h2>Test Mode</h2>
+      <p>Replay a recorded .txt signal log instead of live hardware &mdash; for development, demos, and testing without the board.</p>
+      <span class="landing-card-cta">Open Test Mode &rarr;</span>
+    </a>
+  </div>
+
+  <div class="landing-footer">
+    <a href="sessions.html">View saved session history &rarr;</a>
+  </div>
+</div>
+</body>
+</html>
