@@ -15,7 +15,7 @@
  * these three values to match.
  */
 const FLEX_AXIS = 'x';        // which local axis to rotate around: 'x' | 'y' | 'z'
-const FLEX_DIRECTION = 1;     // flip to -1 if the elbow bends the wrong way
+const FLEX_DIRECTION = -1;     // flip to -1 if the elbow bends the wrong way
 const FLEX_MAX_DEGREES = 110; // rotation amount at 100% MVC
 
 // How the whole model is rotated on screen, purely cosmetic (doesn't touch
